@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import Image from 'next/image';
-import { MapPin, BedDouble, Bath, Maximize2, Phone, ShieldCheck, Copy, Eye, Gauge } from 'lucide-react';
+import Link from 'next/link';
+import { MapPin, BedDouble, Bath, Maximize2, Phone, ShieldCheck, Copy, Eye, Gauge, Pencil } from 'lucide-react';
 import { OffPlanProperty } from '@/lib/services/off-plan-property.service';
 import { Agent } from '@/lib/services/agent.service';
 import { calculatePropertyScore, getScoreColor } from '@/lib/utils/property-scoring';
@@ -29,10 +32,34 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
         setShowPhoneMenu(false);
     };
 
+    const handleCardClick = (e: React.MouseEvent) => {
+        // Don't navigate if clicking on buttons or interactive elements
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('a') || target.closest('[role="button"]')) {
+            return;
+        }
+        // Navigate to single property page (assuming route exists or will be created)
+        // Using window.location for now as useRouter fits better in client components 
+        // but we are already in a client component.
+        // Let's use Link wrapper logic or just router.push if we add router.
+        // Since we didn't import useRouter, let's add it.
+    };
+
     return (
-        <div className="bg-white rounded-[16px] border border-[1px] border-[#E6E6E6] hover:shadow-lg transition-all duration-300 group flex flex-col w-full">
+        <div className="bg-white rounded-[16px] border border-[1px] border-[#E6E6E6] hover:shadow-lg transition-all duration-300 group flex flex-col w-full relative cursor-pointer">
+            <Link href={`/off-plan/${property.id}`} className="absolute inset-0 z-0" />
+
+            {/* Edit Button - Always Visible, High Z-Index to be clickable over the card link */}
+            <Link
+                href={`/off-plan/${property.id}/edit`}
+                className="absolute top-3 right-3 z-30 h-8 w-8 bg-white/90 hover:bg-white backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm text-gray-700 hover:text-blue-500 transition-all duration-200"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <Pencil className="h-4 w-4" />
+            </Link>
+
             {/* Image Section */}
-            <div className="relative h-[220px] w-full p-[10px]">
+            <div className="relative h-[220px] w-full p-[10px] pointer-events-none">
                 <div className="relative h-full w-full rounded-[10px] overflow-hidden">
                     <Image
                         src={property.coverPhoto || '/placeholder-property.jpg'}
@@ -54,7 +81,7 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
                     />
 
                     {/* Top Badges */}
-                    <div className="absolute top-3 left-3 flex gap-2">
+                    <div className="absolute top-3 left-3 flex gap-2 z-10">
                         <div className="px-[8px] h-[22px] py-[4px] bg-[#FF111180] text-white text-[11px] font-medium rounded-full tracking-wide"><span>
                             Off Plan
                         </span></div>
@@ -65,7 +92,7 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
                     </div>
 
                     {/* Bottom Overlay Info */}
-                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
+                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end z-10">
                         {/* Glassmorphism Property Type */}
                         <div className="flex gap-2 flex-wrap max-w-[60%]">
                             {property.propertyType && property.propertyType.length > 0 ? (
@@ -88,7 +115,7 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
             </div>
 
             {/* Content Section */}
-            <div className="px-4 pb-4 pt-1 flex-1 flex flex-col overflow-visible">
+            <div className="px-4 pb-4 pt-1 flex-1 flex flex-col overflow-visible pointer-events-none">
                 {/* Title */}
                 <h3 className="text-[20px] font-medium text-[#1A1A1A] mb-2 line-clamp-1 tracking-tight" style={{ fontFamily: 'var(--font-montserrat)' }}>
                     {property.projectTitle}
@@ -127,7 +154,7 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
                 </div>
 
                 {/* Agent Section - Placeholder for now as we moved to multiple experts */}
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-5 pointer-events-auto">
                     <div className="flex items-center">
                         <div className="relative h-[36px] w-[110px] flex items-center justify-start">
                             {property.developer?.logoUrl ? (
@@ -145,15 +172,17 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
                         </div>
                     </div>
 
-                    <div className="flex gap-2 relative">
+                    <div className="flex gap-2 relative z-20">
                         <button
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
                                 const salesManagerPhone = property.developer?.salesManagerPhone;
                                 if (salesManagerPhone) {
                                     window.location.href = `tel:${salesManagerPhone}`;
                                 }
                             }}
-                            className="h-8 w-8 flex items-center justify-center rounded-full bg-[#F7F9FC] text-[#8F9BB3] hover:bg-[#EDF1F7] hover:text-[#1A1A1A] transition-all duration-300"
+                            className="h-8 w-8 flex items-center justify-center rounded-full bg-[#F7F9FC] text-[#8F9BB3] hover:bg-[#EDF1F7] hover:text-[#1A1A1A] transition-all duration-300 cursor-pointer"
                         >
                             <Phone className="h-3.5 w-3.5" />
                         </button>
@@ -161,7 +190,7 @@ export function OffPlanPropertyCard({ property }: OffPlanPropertyCardProps) {
                 </div>
 
                 {/* Footer Stats */}
-                <div className="mt-auto pt-3 border-t border-[#EDF1F7] flex items-center justify-between">
+                <div className="mt-auto pt-3 border-t border-[#EDF1F7] flex items-center justify-between pointer-events-auto">
                     <div className="flex items-center gap-1.5">
                         {/* Verification Shield */}
                         <Image

@@ -2,15 +2,18 @@
 
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProperties, updatePropertyStatus, togglePropertyActive, getPropertyAggregates } from '@/services/property.service';
+import { updatePropertyStatus, togglePropertyActive, getPropertyAggregates } from '@/services/property.service';
+import { useInfiniteProperties } from '@/hooks/use-infinite-properties';
 import { PropertyCard } from '@/components/properties/property-card';
+import { PropertyCardSkeleton } from '@/components/properties/property-card-skeleton';
 import { PropertyFilters, PropertyFilterValues } from '@/components/properties/property-filters';
 import { SortMenu, SortConfig } from '@/components/properties/sort-menu';
-import { Search, SlidersHorizontal, Plus, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { VirtuosoGrid } from 'react-virtuoso';
 
 export default function RentedPropertiesPage() {
     const queryClient = useQueryClient();
@@ -25,7 +28,7 @@ export default function RentedPropertiesPage() {
         reference: '',
         propertyTypes: [],
         permitNumber: '',
-        status: 'RENTED', // Initialize with RENTED
+        status: 'RENTED',
         minPrice: 0,
         maxPrice: 100000000,
         minArea: 0,
@@ -38,54 +41,90 @@ export default function RentedPropertiesPage() {
         queryFn: getPropertyAggregates,
     });
 
-    // Fetch properties
-    const { data, isLoading } = useQuery({
-        queryKey: ['properties', searchQuery, filters, sortConfig],
-        queryFn: () => getProperties({
-            search: searchQuery,
-            agentIds: filters.agentIds,
-            category: filters.category,
-            purpose: filters.purpose,
-            location: filters.location,
-            reference: filters.reference,
-            propertyTypes: filters.propertyTypes,
-            permitNumber: filters.permitNumber,
-            status: filters.status, // Pass explicit status
-            minPrice: filters.minPrice,
-            maxPrice: filters.maxPrice,
-            minArea: filters.minArea,
-            maxArea: filters.maxArea,
-            sortBy: sortConfig.sortBy,
-            sortOrder: sortConfig.sortOrder,
-        }),
-    });
-
-    const properties = data?.data || [];
-    const totalCount = data?.meta?.total || 0;
+    // Use infinite scroll hook
+    const { properties, totalCount, isLoading, isFetchingNextPage, observerTarget, fetchNextPage, hasNextPage } = useInfiniteProperties(
+        searchQuery,
+        filters,
+        sortConfig
+    );
 
     // Mutations
     const statusMutation = useMutation({
         mutationFn: ({ id, status }: { id: string; status: 'AVAILABLE' | 'SOLD' | 'RENTED' }) =>
             updatePropertyStatus(id, status),
+        onMutate: async ({ id, status }) => {
+            await queryClient.cancelQueries({ queryKey: ['properties'] });
+            const previousData = queryClient.getQueryData(['properties']);
+
+            queryClient.setQueriesData(
+                { queryKey: ['properties'] },
+                (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((prop: any) =>
+                                prop.id === id ? { ...prop, status } : prop
+                            ),
+                        })),
+                    };
+                }
+            );
+
+            return { previousData };
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['properties'] });
-            queryClient.invalidateQueries({ queryKey: ['topAgents'] });
             toast.success('Property status updated');
         },
-        onError: () => {
+        onError: (_err, _variables, context) => {
+            if (context?.previousData) {
+                queryClient.setQueryData(['properties'], context.previousData);
+            }
             toast.error('Failed to update status');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['properties'] });
+            queryClient.invalidateQueries({ queryKey: ['topAgents'] });
         }
     });
 
     const activeMutation = useMutation({
         mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
             togglePropertyActive(id, isActive),
+        onMutate: async ({ id, isActive }) => {
+            await queryClient.cancelQueries({ queryKey: ['properties'] });
+            const previousData = queryClient.getQueryData(['properties']);
+
+            queryClient.setQueriesData(
+                { queryKey: ['properties'] },
+                (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            data: page.data.map((prop: any) =>
+                                prop.id === id ? { ...prop, isActive } : prop
+                            ),
+                        })),
+                    };
+                }
+            );
+
+            return { previousData };
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['properties'] });
             toast.success('Property status toggled');
         },
-        onError: () => {
+        onError: (_err, _variables, context) => {
+            if (context?.previousData) {
+                queryClient.setQueryData(['properties'], context.previousData);
+            }
             toast.error('Failed to toggle status');
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['properties'] });
         }
     });
 
@@ -113,9 +152,9 @@ export default function RentedPropertiesPage() {
                 </div>
             )}
 
-            <div className="flex-1 p-8 max-w-[1600px] mx-auto">
+            <div className="flex-1 p-8 max-w-[1600px] mx-auto h-screen flex flex-col overflow-hidden">
                 {/* Header Title */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 flex-shrink-0">
                     <h1 className="text-[24px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'var(--font-montserrat)' }}>
                         Rented Properties <span className="text-[#8F9BB3] font-medium ml-1">({totalCount})</span>
                     </h1>
@@ -123,8 +162,7 @@ export default function RentedPropertiesPage() {
 
                 {/* Filters Bar - Sticky */}
                 <div
-                    className="flex items-center gap-4 bg-white py-4 mb-8 rounded-xl transition-all"
-                    style={{ position: 'sticky', top: '0px', zIndex: 100 }}
+                    className="flex items-center gap-4 bg-white py-4 mb-4 rounded-xl transition-all flex-shrink-0 z-10"
                 >
                     <div className="relative flex-1 max-w-[400px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8F9BB3]" />
@@ -155,36 +193,73 @@ export default function RentedPropertiesPage() {
                     </div>
                 </div>
 
-                {/* Grid */}
-                {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="bg-white rounded-[16px] h-[400px] animate-pulse" />
-                        ))}
-                    </div>
-                ) : properties.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <Search className="w-8 h-8 text-gray-400" />
+                {/* Grid Content */}
+                <div className="flex-1 min-h-0">
+                    {isLoading ? (
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+                            {[...Array(8)].map((_, i) => (
+                                <div key={i} className="flex justify-center">
+                                    <PropertyCardSkeleton />
+                                </div>
+                            ))}
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-1">No rented properties found</h3>
-                        <p className="text-gray-500 max-w-sm mx-auto">
-                            We couldn't find any properties marked as rented.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-                        {properties.map((property) => (
-                            <div key={property.id} className="flex justify-center">
+                    ) : properties.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                <Search className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-1">No rented properties found</h3>
+                            <p className="text-gray-500 max-w-sm mx-auto">
+                                We couldn't find any properties marked as rented.
+                            </p>
+                        </div>
+                    ) : (
+                        <VirtuosoGrid
+                            style={{ height: '100%' }}
+                            totalCount={properties.length}
+                            overscan={200}
+                            endReached={() => {
+                                if (hasNextPage && !isFetchingNextPage) {
+                                    fetchNextPage();
+                                }
+                            }}
+                            components={{
+                                List: React.forwardRef(({ style, children, ...props }: any, ref) => (
+                                    <div
+                                        ref={ref}
+                                        {...props}
+                                        style={{
+                                            ...style,
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                            gap: '16px',
+                                            paddingBottom: '32px'
+                                        }}
+                                    >
+                                        {children}
+                                    </div>
+                                )),
+                                Item: ({ children, ...props }: any) => (
+                                    <div {...props} className="flex justify-center">
+                                        {children}
+                                    </div>
+                                ),
+                                Footer: () => isFetchingNextPage ? (
+                                    <div className="col-span-full flex justify-center py-8">
+                                        <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : null
+                            }}
+                            itemContent={(index: number) => (
                                 <PropertyCard
-                                    property={property}
+                                    property={properties[index]}
                                     onStatusChange={handleStatusChange}
                                     onToggleActive={handleToggleActive}
                                 />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            )}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );

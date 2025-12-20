@@ -171,4 +171,9 @@ export class CreatePropertyDto {
     @IsOptional()
     @IsString()
     pfLocationPath?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    @Transform(({ value }) => value === 'true' || value === true)
+    pfPublished?: boolean;
 }

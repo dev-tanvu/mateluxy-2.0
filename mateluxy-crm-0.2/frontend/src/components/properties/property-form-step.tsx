@@ -42,11 +42,11 @@ export function PropertyFormStep({ nocFile: initialNocFile, category: initialCat
     const category = initialData?.category || initialCategory;
     const purpose = initialData?.purpose || initialPurpose;
     const [activeTab, setActiveTab] = useState('client');
-    const [nocFile, setNocFile] = useState<File | null>(initialNocFile);
+    const [nocFile, setNocFile] = useState<File | string | null>(initialNocFile || initialData?.nocDocument || null);
     // New document states
-    const [passportFile, setPassportFile] = useState<File | null>(null);
-    const [emiratesIdFile, setEmiratesIdFile] = useState<File | null>(null);
-    const [titleDeedFile, setTitleDeedFile] = useState<File | null>(null);
+    const [passportFile, setPassportFile] = useState<File | string | null>(initialData?.passportCopy || null);
+    const [emiratesIdFile, setEmiratesIdFile] = useState<File | string | null>(initialData?.emiratesIdScan || null);
+    const [titleDeedFile, setTitleDeedFile] = useState<File | string | null>(initialData?.titleDeed || null);
 
     const createPropertyMutation = useCreateProperty();
     const updatePropertyMutation = useUpdateProperty();
@@ -270,6 +270,7 @@ export function PropertyFormStep({ nocFile: initialNocFile, category: initialCat
                             errors={errors}
                             setValue={setValue}
                             watch={watch}
+                            category={category}
                         />
                     )}
                     {activeTab === 'agent' && (
@@ -294,27 +295,39 @@ export function PropertyFormStep({ nocFile: initialNocFile, category: initialCat
                     </Button>
                     <div className="flex gap-3">
                         {activeTab === 'agent' && (
-                            <Button
-                                onClick={() => onSubmit({ ...getValues(), isActive: false })}
-                                disabled={createPropertyMutation.isPending || updatePropertyMutation.isPending}
-                                variant="outline"
-                                className="px-8 py-3 border border-[#E0F2FE] text-[#0BA5EC] hover:bg-[#E0F2FE] hover:text-[#0BA5EC] rounded-xl font-medium transition-colors h-auto disabled:opacity-50"
-                            >
-                                Save as Draft
-                            </Button>
+                            <>
+                                <Button
+                                    onClick={() => onSubmit({ ...getValues(), isActive: true, pfPublished: false })}
+                                    disabled={createPropertyMutation.isPending || updatePropertyMutation.isPending}
+                                    variant="outline"
+                                    className="px-8 py-3 border border-[#E0F2FE] text-[#0BA5EC] hover:bg-[#E0F2FE] hover:text-[#0BA5EC] rounded-xl font-medium transition-colors h-auto disabled:opacity-50"
+                                >
+                                    {(createPropertyMutation.isPending || updatePropertyMutation.isPending) ? (isEditing ? 'Saving...' : 'Saving...') : (isEditing ? 'Save Changes' : 'Save')}
+                                </Button>
+                                <Button
+                                    onClick={() => onSubmit({ ...getValues(), isActive: true, pfPublished: true })}
+                                    disabled={createPropertyMutation.isPending || updatePropertyMutation.isPending}
+                                    className="px-10 py-3 bg-[#00AAFF] text-white hover:bg-[#0090dd] rounded-xl font-medium transition-colors flex items-center gap-2 h-auto disabled:opacity-50"
+                                >
+                                    {(createPropertyMutation.isPending || updatePropertyMutation.isPending) ? 'Publishing...' : 'Publish to Property Finder'}
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </Button>
+                            </>
                         )}
-                        <Button
-                            onClick={handleNext}
-                            disabled={createPropertyMutation.isPending || updatePropertyMutation.isPending}
-                            className="px-10 py-3 bg-[#E0F2FE] text-[#0BA5EC] hover:bg-[#BAE6FD] rounded-xl font-medium transition-colors flex items-center gap-2 h-auto disabled:opacity-50"
-                        >
-                            {activeTab === 'agent' ? ((createPropertyMutation.isPending || updatePropertyMutation.isPending) ? (isEditing ? 'Updating...' : 'Submitting...') : (isEditing ? 'Update Property' : 'Submit')) : 'Next'}
-                            {activeTab !== 'agent' && (
+                        {activeTab !== 'agent' && (
+                            <Button
+                                onClick={handleNext}
+                                disabled={createPropertyMutation.isPending || updatePropertyMutation.isPending}
+                                className="px-10 py-3 bg-[#E0F2FE] text-[#0BA5EC] hover:bg-[#BAE6FD] rounded-xl font-medium transition-colors flex items-center gap-2 h-auto disabled:opacity-50"
+                            >
+                                Next
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                 </svg>
-                            )}
-                        </Button>
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>

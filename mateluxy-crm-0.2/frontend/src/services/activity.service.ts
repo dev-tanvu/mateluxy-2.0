@@ -14,7 +14,7 @@ export interface ActivityLog {
     };
 }
 
-export const getActivityLogs = async (params?: { skip?: number; take?: number; search?: string }) => {
+export const getActivityLogs = async (params?: { skip?: number; take?: number; search?: string; startDate?: string; endDate?: string }) => {
     const { data } = await api.get<ActivityLog[]>('/activity-logs', { params });
     return data;
 };

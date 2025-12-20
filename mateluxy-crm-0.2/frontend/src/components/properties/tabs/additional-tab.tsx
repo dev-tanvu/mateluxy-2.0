@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import { UseFormRegister, Control, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sparkles, Plus, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAmenities, useCreateAmenity } from '@/hooks/use-amenities';
+import { getAmenitiesByCategory, AmenityItem } from '@/lib/amenities-data';
 
 interface AdditionalTabProps {
     register: UseFormRegister<any>;
@@ -14,11 +14,12 @@ interface AdditionalTabProps {
     errors: FieldErrors<any>;
     setValue: UseFormSetValue<any>;
     watch: UseFormWatch<any>;
+    category?: string;
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-export function AdditionalTab({ register, control, errors, setValue, watch }: AdditionalTabProps) {
+export function AdditionalTab({ register, control, errors, setValue, watch, category }: AdditionalTabProps) {
     // Watch form values for persistence
     const availableFrom = watch('availableFrom');
     const amenitiesList = watch('amenities');
@@ -44,12 +45,48 @@ export function AdditionalTab({ register, control, errors, setValue, watch }: Ad
         return initialSet;
     });
 
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [newAmenityName, setNewAmenityName] = useState('');
+    // Update local state when form value changes (e.g. from sanitization)
+    React.useEffect(() => {
+        if (Array.isArray(amenitiesList)) {
+            setSelectedAmenities(new Set(amenitiesList));
+        }
+    }, [amenitiesList]);
 
-    // Fetch amenities from database
-    const { data: amenities = [], isLoading: isLoadingAmenities } = useAmenities();
-    const createAmenityMutation = useCreateAmenity();
+
+
+    // Load static amenities based on category
+    const amenities = getAmenitiesByCategory(category || 'Residential');
+
+    // Group amenities by category for display
+    const groupedAmenities = React.useMemo(() => {
+        const groups: Record<string, AmenityItem[]> = {};
+        amenities.forEach(item => {
+            if (!groups[item.category]) {
+                groups[item.category] = [];
+            }
+            groups[item.category].push(item);
+        });
+        return groups;
+    }, [amenities]);
+
+    // Sanitize amenities on mount or category change
+    // This ensures that:
+    // 1. Old database IDs are removed (migrating to slugs)
+    // 2. Incompatible amenities are removed when switching categories (e.g. Residential -> Commercial)
+    React.useEffect(() => {
+        const validSlugs = new Set(amenities.map(a => a.slug));
+        const currentAmenities = Array.isArray(amenitiesList) ? amenitiesList : [];
+
+        const sanitized = currentAmenities.filter((slug: string) => validSlugs.has(slug));
+
+        // Only update if there's a difference to avoid infinite loops
+        if (sanitized.length !== currentAmenities.length ||
+            (currentAmenities.length > 0 && !sanitized.every((val: string, index: number) => val === currentAmenities[index]))) {
+
+            setValue('amenities', sanitized);
+            setSelectedAmenities(new Set(sanitized));
+        }
+    }, [category, amenities, setValue]); // amenities depends on category, so this runs when category changes
 
     const handleAutoGenerate = () => {
         const randomRef = `REF-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
@@ -68,17 +105,7 @@ export function AdditionalTab({ register, control, errors, setValue, watch }: Ad
         setValue('amenities', Array.from(next));
     };
 
-    const handleAddAmenity = async () => {
-        if (!newAmenityName.trim()) return;
 
-        try {
-            await createAmenityMutation.mutateAsync({ name: newAmenityName.trim() });
-            setNewAmenityName('');
-            setShowAddModal(false);
-        } catch (error: any) {
-            console.error('Failed to create amenity:', error);
-        }
-    };
 
     // Calendar helpers
     const getDaysInMonth = (date: Date) => {
@@ -178,65 +205,58 @@ export function AdditionalTab({ register, control, errors, setValue, watch }: Ad
             {/* Row 2: Amenities and Calendar */}
             <div className="grid grid-cols-2 gap-8">
                 {/* Amenities */}
-                <div className="bg-[#F7F7F74F] rounded-xl border border-[#EDF1F7] p-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[15px] font-semibold text-gray-900">Amenities</h3>
-                        <button
-                            type="button"
-                            onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-1 text-[#FF6B6B] text-sm font-medium hover:text-[#e55a5a] transition-colors"
-                        >
-                            <Plus className="w-4 h-4" />
-                            Add New
-                        </button>
+                <div className="bg-[#F7F7F74F] rounded-xl border border-[#EDF1F7] p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[16px] font-semibold text-gray-900">
+                            {category?.toLowerCase() === 'commercial' ? 'Commercial Amenities' : 'Residential Amenities'}
+                        </h3>
                     </div>
 
-                    {isLoadingAmenities ? (
-                        <div className="flex items-center justify-center py-8 text-gray-400">
-                            Loading amenities...
-                        </div>
-                    ) : amenities.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                            <p className="text-sm">No amenities yet</p>
-                            <p className="text-xs mt-1">Click "Add New" to create your first amenity</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-4 gap-y-3 gap-x-4">
-                                {displayedAmenities.map((amenity) => (
-                                    <label key={amenity.id} className="flex items-center gap-2 cursor-pointer">
-                                        <div
+                    <div className="space-y-6">
+                        {Object.entries(groupedAmenities).map(([group, items]) => (
+                            <div key={group} className="space-y-3">
+                                <h4 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wider">{group}</h4>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    {items.map((amenity) => (
+                                        <label
+                                            key={amenity.slug}
                                             className={cn(
-                                                "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                                                selectedAmenities.has(amenity.id)
-                                                    ? "bg-[#00AAFF] border-[#00AAFF]"
-                                                    : "bg-white border-gray-300"
+                                                "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:border-blue-200 hover:bg-blue-50/30",
+                                                selectedAmenities.has(amenity.slug)
+                                                    ? "bg-blue-50 border-blue-500 ring-1 ring-blue-500"
+                                                    : "bg-white border-gray-200"
                                             )}
-                                            onClick={() => toggleAmenity(amenity.id)}
                                         >
-                                            {selectedAmenities.has(amenity.id) && (
-                                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-[14px] text-gray-700">{amenity.name}</span>
-                                    </label>
-                                ))}
+                                            <div
+                                                className={cn(
+                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                    selectedAmenities.has(amenity.slug)
+                                                        ? "bg-blue-500 border-blue-500 text-white"
+                                                        : "bg-white border-gray-300"
+                                                )}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    toggleAmenity(amenity.slug);
+                                                }}
+                                            >
+                                                {selectedAmenities.has(amenity.slug) && (
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span className={cn(
+                                                "text-[14px] font-medium select-none",
+                                                selectedAmenities.has(amenity.slug) ? "text-blue-700" : "text-gray-700"
+                                            )}>
+                                                {amenity.label}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
-
-                            {amenities.length > 20 && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowMore(!showMore)}
-                                    className="flex items-center gap-1 text-gray-400 text-sm mt-4 hover:text-gray-600 transition-colors"
-                                >
-                                    <ChevronDown className={cn("w-4 h-4 transition-transform", showMore && "rotate-180")} />
-                                    {showMore ? 'View Less' : 'View More'}
-                                </button>
-                            )}
-                        </>
-                    )}
+                        ))}
+                    </div>
                 </div>
 
                 {/* Calendar (only visible when From Date is selected) */}
@@ -305,74 +325,7 @@ export function AdditionalTab({ register, control, errors, setValue, watch }: Ad
                 )}
             </div>
 
-            {/* Add Amenity Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Add New Amenity</h3>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowAddModal(false);
-                                    setNewAmenityName('');
-                                }}
-                                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5 text-gray-500" />
-                            </button>
-                        </div>
 
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="amenityName" className="text-[15px] font-medium text-gray-700">
-                                    Amenity Name
-                                </Label>
-                                <Input
-                                    id="amenityName"
-                                    value={newAmenityName}
-                                    onChange={(e) => setNewAmenityName(e.target.value)}
-                                    placeholder="e.g. Swimming Pool, Gym, etc."
-                                    className="h-[50px] bg-white border-[#EDF1F7] rounded-lg focus-visible:ring-blue-500 placeholder:text-[#8F9BB3] text-[15px]"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            handleAddAmenity();
-                                        }
-                                    }}
-                                />
-                            </div>
-
-                            {createAmenityMutation.isError && (
-                                <p className="text-sm text-red-500">
-                                    {(createAmenityMutation.error as Error)?.message || 'Failed to create amenity'}
-                                </p>
-                            )}
-
-                            <div className="flex gap-3 justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowAddModal(false);
-                                        setNewAmenityName('');
-                                    }}
-                                    className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleAddAmenity}
-                                    disabled={!newAmenityName.trim() || createAmenityMutation.isPending}
-                                    className="px-6 py-2 bg-[#00AAFF] text-white rounded-lg font-medium hover:bg-[#0095e0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {createAmenityMutation.isPending ? 'Adding...' : 'Add Amenity'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

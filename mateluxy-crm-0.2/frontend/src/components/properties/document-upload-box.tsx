@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface DocumentUploadBoxProps {
     label: string;
     icon: React.ReactNode;
-    file?: File | null;
+    file?: File | string | null;
     onFileSelect: (file: File) => void;
     onRemove: () => void;
     accept?: string;
@@ -38,13 +38,30 @@ export function DocumentUploadBox({
         }
     };
 
+    const handleDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
-        setIsDragging(true);
+        e.stopPropagation();
+        if (!isDragging) {
+            setIsDragging(true);
+        }
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+
+        // Only set dragging to false if we're actually leaving the container
+        // and not just entering a child element
+        if (e.currentTarget.contains(e.relatedTarget as Node)) {
+            return;
+        }
+
         setIsDragging(false);
     };
 
@@ -58,10 +75,11 @@ export function DocumentUploadBox({
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-200 bg-white hover:border-blue-400 hover:bg-gray-50"
             )}
-            onClick={() => !file && fileInputRef.current?.click()}
-            onDrop={!file ? handleDrop : undefined}
-            onDragOver={!file ? handleDragOver : undefined}
-            onDragLeave={!file ? handleDragLeave : undefined}
+            onClick={() => fileInputRef.current?.click()}
+            onDrop={handleDrop}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
         >
             <input
                 type="file"
@@ -76,17 +94,31 @@ export function DocumentUploadBox({
                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-2 text-blue-600">
                         <CheckCircle2 className="w-5 h-5" />
                     </div>
-                    <p className="text-sm font-medium text-gray-900 truncate max-w-full px-2 text-center">
-                        {file.name}
-                    </p>
+
+                    {typeof file === 'string' ? (
+                        <a
+                            href={file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm font-medium text-blue-600 hover:underline truncate max-w-full px-2 text-center"
+                        >
+                            View Uploaded Document
+                        </a>
+                    ) : (
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-full px-2 text-center">
+                            {file.name}
+                        </p>
+                    )}
+
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onRemove();
                         }}
-                        className="mt-2 text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
+                        className="mt-2 text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1 z-10"
                     >
-                        <X className="w-3 h-3" /> Remove
+                        <X className="w-3 h-3" /> Remove & Replace
                     </button>
                 </div>
             ) : (
@@ -96,6 +128,9 @@ export function DocumentUploadBox({
                     </div>
                     <p className="text-sm font-medium text-gray-600 text-center group-hover:text-gray-900">
                         {label}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        Drag & drop or Click to upload
                     </p>
                 </>
             )}

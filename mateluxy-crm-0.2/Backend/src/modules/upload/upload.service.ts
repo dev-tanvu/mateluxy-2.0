@@ -48,7 +48,7 @@ export class UploadService {
         }
 
         try {
-            const fileExtension = file.originalname.split('.').pop();
+            const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
             const key = `${uuidv4()}.${fileExtension}`;
 
             await this.s3Client.send(

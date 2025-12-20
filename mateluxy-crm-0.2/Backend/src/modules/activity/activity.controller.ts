@@ -16,16 +16,26 @@ export class ActivityController {
         @Query('skip') skip?: string,
         @Query('take') take?: string,
         @Query('search') search?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
     ) {
-        const where: Prisma.ActivityLogWhereInput = search
-            ? {
-                OR: [
-                    { action: { contains: search, mode: 'insensitive' } },
-                    { user: { fullName: { contains: search, mode: 'insensitive' } } },
-                    { user: { email: { contains: search, mode: 'insensitive' } } },
-                ],
-            }
-            : {};
+        const where: Prisma.ActivityLogWhereInput = {
+            AND: [
+                search ? {
+                    OR: [
+                        { action: { contains: search, mode: 'insensitive' } },
+                        { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                        { user: { email: { contains: search, mode: 'insensitive' } } },
+                    ],
+                } : {},
+                startDate && endDate ? {
+                    createdAt: {
+                        gte: new Date(startDate),
+                        lte: new Date(endDate),
+                    }
+                } : {}
+            ]
+        };
 
         return this.activityService.findAll({
             skip: skip ? Number(skip) : undefined,

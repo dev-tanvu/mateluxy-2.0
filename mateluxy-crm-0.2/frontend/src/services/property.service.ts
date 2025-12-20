@@ -95,12 +95,12 @@ export interface CreatePropertyData {
     pfLocationPath?: string;
 
     // Files
-    coverPhoto?: File;
-    mediaImages?: File[];
-    nocDocument?: File;
-    passportCopy?: File;
-    emiratesIdScan?: File;
-    titleDeed?: File;
+    coverPhoto?: File | string;
+    mediaImages?: (File | string)[];
+    nocDocument?: File | string;
+    passportCopy?: File | string;
+    emiratesIdScan?: File | string;
+    titleDeed?: File | string;
 }
 
 // Get all properties
@@ -198,7 +198,14 @@ export const createProperty = async (data: CreatePropertyData): Promise<Property
 
     // Append all text fields
     Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && key !== 'coverPhoto' && key !== 'mediaImages' && key !== 'nocDocument' && key !== 'amenities') {
+        if (value !== undefined && value !== null &&
+            key !== 'coverPhoto' &&
+            key !== 'mediaImages' &&
+            key !== 'nocDocument' &&
+            key !== 'passportCopy' &&
+            key !== 'emiratesIdScan' &&
+            key !== 'titleDeed' &&
+            key !== 'amenities') {
             formData.append(key, String(value));
         }
     });
@@ -221,19 +228,19 @@ export const createProperty = async (data: CreatePropertyData): Promise<Property
         });
     }
 
-    if (data.nocDocument) {
+    if (data.nocDocument instanceof File) {
         formData.append('nocDocument', data.nocDocument);
     }
 
-    if (data.passportCopy) {
+    if (data.passportCopy instanceof File) {
         formData.append('passportCopy', data.passportCopy);
     }
 
-    if (data.emiratesIdScan) {
+    if (data.emiratesIdScan instanceof File) {
         formData.append('emiratesIdScan', data.emiratesIdScan);
     }
 
-    if (data.titleDeed) {
+    if (data.titleDeed instanceof File) {
         formData.append('titleDeed', data.titleDeed);
     }
 
@@ -274,19 +281,19 @@ export const updateProperty = async (id: string, data: Partial<CreatePropertyDat
         });
     }
 
-    if (data.nocDocument) {
+    if (data.nocDocument instanceof File) {
         formData.append('nocDocument', data.nocDocument);
     }
 
-    if (data.passportCopy) {
+    if (data.passportCopy instanceof File) {
         formData.append('passportCopy', data.passportCopy);
     }
 
-    if (data.emiratesIdScan) {
+    if (data.emiratesIdScan instanceof File) {
         formData.append('emiratesIdScan', data.emiratesIdScan);
     }
 
-    if (data.titleDeed) {
+    if (data.titleDeed instanceof File) {
         formData.append('titleDeed', data.titleDeed);
     }
 

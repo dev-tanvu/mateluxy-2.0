@@ -268,6 +268,11 @@ model Property {
   status            PropertyStatus @default(AVAILABLE)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  @@index([isActive, pfPublished])
+  @@index([isActive, status])
+  @@index([price])
+  @@index([createdAt])
 }
 
 model Lead {

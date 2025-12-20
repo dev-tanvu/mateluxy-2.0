@@ -101,6 +101,8 @@ export function PropertyCard({ property, onStatusChange, onToggleActive }: Prope
                             src={imgSrc}
                             alt={property.propertyTitle || 'Property Image'}
                             fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 300px"
+                            quality={80}
                             className="object-cover group-hover:scale-105 transition-transform duration-700"
                             placeholder="blur"
                             blurDataURL={blurDataURL}
@@ -349,11 +351,15 @@ export function PropertyCard({ property, onStatusChange, onToggleActive }: Prope
                         {/* Score Pill */}
                         <div className="flex px-[8px] items-center gap-1 h-[28px] rounded-full" style={{ backgroundColor: scoreColor.bg }}>
                             <Gauge className="w-2.5 h-2.5" style={{ color: scoreColor.icon }} />
-                            <span className="text-[10px] font-semibold" style={{ color: scoreColor.text }}>{score}/100</span>
+                            <span className="text-[10px] font-semibold" style={{ color: scoreColor.text }}>
+                                {property.pfVerificationStatus?.toLowerCase() === 'rejected' ? 'N/A' : `${score}/100`}
+                            </span>
                         </div>
                         <div className="flex px-[8px] items-center gap-1 h-[28px] bg-[#E3F2FD] rounded-full">
                             <Eye className="w-2.5 h-2.5 text-[#2196F3]" />
-                            <span className="text-[10px] font-semibold text-[#2196F3]">56 Leads</span>
+                            <span className="text-[10px] font-semibold text-[#2196F3]">
+                                {property.pfVerificationStatus?.toLowerCase() === 'rejected' ? 'N/A' : '56 Leads'}
+                            </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-1 text-[#9E9E9E]">

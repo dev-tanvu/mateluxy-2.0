@@ -89,9 +89,9 @@ export default function AgentsPage() {
     };
 
     return (
-        <div className="p-8 space-y-8">
-            {/* Header */}
-            <div className="flex flex-col gap-6">
+        <div className="flex flex-col h-screen bg-white p-8 space-y-8 overflow-hidden">
+            {/* Header Section - Rigid */}
+            <div className="flex-shrink-0 flex flex-col gap-6">
                 <div className="flex items-center justify-between gap-4">
                     <div className="relative flex-1 max-w-[300px]">
                         <Input
@@ -166,13 +166,15 @@ export default function AgentsPage() {
                 </div>
             </div>
 
-            {/* Agent List */}
-            <AgentList
-                search={searchQuery}
-                filterStatus={activeTab === 'all' ? undefined : activeTab === 'active'}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-            />
+            {/* Agent List - Flexible Scrollable Area */}
+            <div className="flex-1 min-h-0">
+                <AgentList
+                    search={searchQuery}
+                    filterStatus={activeTab === 'all' ? undefined : activeTab === 'active'}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                />
+            </div>
 
             {/* Add/Edit Agent Sheet */}
             <AddAgentSheet

@@ -57,7 +57,7 @@ export function Topbar() {
             <div className="flex items-center gap-4">
                 {/* Add New Property Dropdown */}
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild id="add-property-trigger">
                         <Button className="h-10 rounded-lg bg-[#00B7FF14] py-6 px-16 text-[#00B7FF] hover:bg-[#00B7FF24] hover:text-[#00B7FF] shadow-none border-0">
                             <Plus className="h-4 w-4" />
                             Add new property
@@ -80,7 +80,7 @@ export function Topbar() {
 
                 {/* Rapid Tools Dropdown */}
                 <DropdownMenu open={isRapidToolsOpen} onOpenChange={setIsRapidToolsOpen}>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild id="rapid-tools-trigger">
                         <Button variant="outline" className="h-10 gap-2 rounded-lg py-6 px-16 border-gray-200 text-gray-600 hover:bg-gray-50">
                             <Wrench className="h-4 w-4 text-blue-500" />
                             Rapid Tools
@@ -204,7 +204,7 @@ export function Topbar() {
                 <NotificationsDropdown />
 
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild id="user-menu-trigger">
                         <button className="flex items-center gap-3 rounded-full border border-gray-100 bg-gray-50 p-1 pr-4 outline-none hover:bg-gray-100 transition-colors">
                             <div className="h-8 w-8 rounded-full bg-gray-900 overflow-hidden">
                                 {user?.avatarUrl && !avatarError ? (

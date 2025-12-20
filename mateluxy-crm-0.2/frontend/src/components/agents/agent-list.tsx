@@ -6,6 +6,7 @@ import { useAgents } from '@/lib/hooks/use-agents';
 import { AgentCard } from './agent-card';
 import { AgentCardSkeleton } from './agent-card-skeleton';
 import { Agent } from '@/lib/services/agent.service';
+import { VirtuosoGrid } from 'react-virtuoso';
 
 interface AgentListProps {
     search?: string;
@@ -49,15 +50,39 @@ export function AgentList({ search, filterStatus, onEdit, onDelete }: AgentListP
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredAgents.map((agent) => (
+        <VirtuosoGrid
+            style={{ height: '100%' }}
+            totalCount={filteredAgents.length}
+            overscan={200}
+            components={{
+                List: React.forwardRef(({ style, children, ...props }: any, ref) => (
+                    <div
+                        ref={ref}
+                        {...props}
+                        style={{
+                            ...style,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                            gap: '24px',
+                            paddingBottom: '32px'
+                        }}
+                    >
+                        {children}
+                    </div>
+                )),
+                Item: ({ children, ...props }: any) => (
+                    <div {...props} className="flex justify-center">
+                        {children}
+                    </div>
+                )
+            }}
+            itemContent={(index: number) => (
                 <AgentCard
-                    key={agent.id}
-                    agent={agent}
+                    agent={filteredAgents[index]}
                     onEdit={onEdit}
                     onDelete={onDelete}
                 />
-            ))}
-        </div>
+            )}
+        />
     );
 }

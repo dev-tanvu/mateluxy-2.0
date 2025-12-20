@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentService, CreateAgentDto } from '../services/agent.service';
 
+import { keepPreviousData } from '@tanstack/react-query';
+
 export const useAgents = (search?: string) => {
     return useQuery({
         queryKey: ['agents', search],
         queryFn: () => agentService.getAll(search),
+        placeholderData: keepPreviousData,
     });
 };
 

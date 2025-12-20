@@ -54,7 +54,7 @@ const MENU_ITEMS: MenuItem[] = [
         icon: Building2,
         href: '/properties',
         submenu: [
-            { title: 'All Properties', href: '/properties/all' },
+            { title: 'Active Properties', href: '/properties/all' },
             { title: 'Add New Property', href: '/properties/new' },
             { title: 'Draft Properties', href: '/properties/draft' },
             { title: 'From Agents', href: '/properties/agents' },

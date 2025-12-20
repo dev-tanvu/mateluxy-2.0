@@ -1,20 +1,69 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getActivityLogs } from '@/services/activity.service';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Undo2, Loader2 } from 'lucide-react';
+import { Search, Filter, Undo2, Loader2, Calendar, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { format } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ActivityPage() {
     const [search, setSearch] = useState('');
+    const [filterMode, setFilterMode] = useState<'Last 7 Days' | 'Today' | 'This Month' | 'Custom Range'>('Last 7 Days');
+
+    // Custom date range state (YYYY-MM-DD strings for input type="date")
+    const [customStart, setCustomStart] = useState('');
+    const [customEnd, setCustomEnd] = useState('');
+
+    // Compute date parameters for API
+    const dateParams = useMemo(() => {
+        const now = new Date();
+
+        switch (filterMode) {
+            case 'Today':
+                return {
+                    startDate: startOfDay(now).toISOString(),
+                    endDate: endOfDay(now).toISOString()
+                };
+            case 'Last 7 Days':
+                return {
+                    startDate: subDays(now, 7).toISOString(),
+                    endDate: endOfDay(now).toISOString()
+                };
+            case 'This Month':
+                return {
+                    startDate: startOfMonth(now).toISOString(),
+                    endDate: endOfMonth(now).toISOString()
+                };
+            case 'Custom Range':
+                if (customStart && customEnd) {
+                    return {
+                        startDate: startOfDay(new Date(customStart)).toISOString(),
+                        endDate: endOfDay(new Date(customEnd)).toISOString()
+                    };
+                }
+                return {}; // No filter if dates incomplete
+            default:
+                return {};
+        }
+    }, [filterMode, customStart, customEnd]);
 
     const { data: logs, isLoading } = useQuery({
-        queryKey: ['activity-logs', search],
-        queryFn: () => getActivityLogs({ search, take: 20 }), // Default take 20
+        queryKey: ['activity-logs', search, dateParams],
+        queryFn: () => getActivityLogs({
+            search,
+            take: 50, // Increased limit for better visibility
+            startDate: dateParams.startDate,
+            endDate: dateParams.endDate
+        }),
     });
 
     const formatAction = (action: string) => {
@@ -37,19 +86,63 @@ export default function ActivityPage() {
                 <div className="relative w-[300px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                        placeholder="Search for agent"
+                        placeholder="Search for user"
                         className="pl-10 h-[44px] rounded-[12px] border-[#E5E7EB] bg-white text-[14px] placeholder:text-[#9CA3AF] focus:border-[#00B7FF] focus:ring-0 shadow-sm"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <Button
-                    variant="outline"
-                    className="h-[44px] px-4 rounded-[12px] border-[#E5E7EB] text-[#6B7280] hover:text-[#1F2937] gap-2 font-normal"
-                >
-                    <Filter className="h-4 w-4" />
-                    Filter
-                </Button>
+
+                <div className="flex items-center gap-3">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="h-[44px] px-4 rounded-[12px] border-[#E5E7EB] text-[#6B7280] hover:text-[#1F2937] gap-2 font-normal min-w-[140px] justify-between"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <Filter className="h-4 w-4" />
+                                    {filterMode}
+                                </span>
+                                <ChevronDown className="h-4 w-4 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[180px]">
+                            <DropdownMenuItem onClick={() => setFilterMode('Last 7 Days')}>
+                                Last 7 Days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setFilterMode('Today')}>
+                                Today
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setFilterMode('This Month')}>
+                                This Month
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setFilterMode('Custom Range')}>
+                                Custom Range
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    {filterMode === 'Custom Range' && (
+                        <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-[12px] px-3 h-[44px]">
+                            <input
+                                type="date"
+                                value={customStart}
+                                onChange={(e) => setCustomStart(e.target.value)}
+                                className="text-[13px] text-gray-600 focus:outline-none font-medium"
+                                max={customEnd}
+                            />
+                            <span className="text-gray-400">-</span>
+                            <input
+                                type="date"
+                                value={customEnd}
+                                onChange={(e) => setCustomEnd(e.target.value)}
+                                className="text-[13px] text-gray-600 focus:outline-none font-medium"
+                                min={customStart}
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Table Header */}

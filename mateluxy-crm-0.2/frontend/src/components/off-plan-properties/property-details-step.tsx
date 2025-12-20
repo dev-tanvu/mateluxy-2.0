@@ -391,7 +391,12 @@ export function PropertyDetailsStep({ developerId, initialData, onSubmit, onSave
                             </button>
                         )}
                         <button
-                            type="submit"
+                            type={activeTab === 7 ? "submit" : "button"}
+                            onClick={activeTab === 7 ? undefined : (e) => {
+                                e.preventDefault();
+                                setActiveTab(prev => prev + 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
                             className="px-10 py-3 bg-[#E0F2FE] text-[#0BA5EC] hover:bg-[#BAE6FD] rounded-xl font-medium transition-colors flex items-center gap-2"
                         >
                             {activeTab === 7 ? 'Publish' : 'Next'}

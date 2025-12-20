@@ -167,8 +167,38 @@ export class PropertiesService {
         const [data, total] = await Promise.all([
             this.prisma.property.findMany({
                 where,
-                include: {
-                    assignedAgent: true,
+                select: {
+                    id: true,
+                    propertyTitle: true,
+                    price: true,
+                    // currency: true, // Assuming AED default or handled in frontend if not in schema
+                    address: true,
+                    emirate: true,
+                    bedrooms: true,
+                    bathrooms: true,
+                    area: true,
+                    coverPhoto: true,
+                    status: true,
+                    isActive: true,
+                    pfPublished: true,
+                    pfVerificationStatus: true,
+                    pfLocationPath: true,
+                    category: true,
+                    purpose: true,
+                    reference: true,
+                    propertyType: true,
+                    createdAt: true,
+                    assignedAgent: {
+                        select: {
+                            id: true,
+                            name: true,
+                            photoUrl: true,
+                            phone: true,
+                            phoneSecondary: true,
+                            whatsapp: true,
+                            languages: true,
+                        }
+                    }
                 },
                 orderBy,
                 skip,
@@ -600,9 +630,10 @@ export class PropertiesService {
         emiratesIdScan?: string;
         titleDeed?: string;
     }, userId?: string, ipAddress?: string, location?: string) {
-        const { amenities, assignedAgentId, ...rest } = data;
+        const { amenities, assignedAgentId, pfPublished, ...rest } = data;
 
         // Create property in CRM
+        // VERIFIED PUBLISH: Always start as unpublished in DB unless verified later
         const property = await this.prisma.property.create({
             data: {
                 ...rest,
@@ -610,10 +641,13 @@ export class PropertiesService {
                 assignedAgent: assignedAgentId ? { connect: { id: assignedAgentId } } : undefined,
                 coverPhoto: fileUrls.coverPhoto,
                 mediaImages: fileUrls.mediaImages || [],
+                nocDocument: fileUrls.nocDocument,
+                passportCopy: fileUrls.passportCopy,
                 emiratesIdScan: fileUrls.emiratesIdScan,
                 titleDeed: fileUrls.titleDeed,
                 pfLocationId: data.pfLocationId,
                 pfLocationPath: data.pfLocationPath,
+                pfPublished: false, // Default to false
             },
             include: {
                 assignedAgent: true,
@@ -630,7 +664,8 @@ export class PropertiesService {
         }
 
         // Automatically sync to Property Finder (non-blocking)
-        this.syncToPropertyFinderOnCreate(property.id).catch((error) => {
+        // Pass pfPublished intent
+        this.syncToPropertyFinderOnCreate(property.id, pfPublished).catch((error) => {
             this.logger.error(`Failed to auto-sync property ${property.id} to Property Finder`, error);
             // Don't throw - property creation succeeded, sync failure is logged but doesn't block
         });
@@ -703,6 +738,19 @@ export class PropertiesService {
         if (updatePropertyDto.pfLocationId) data.pfLocationId = updatePropertyDto.pfLocationId;
         if (updatePropertyDto.pfLocationPath) data.pfLocationPath = updatePropertyDto.pfLocationPath;
 
+        // VERIFIED PUBLISH: Don't set pfPublished here. Extract it.
+        // Normalize boolean from string if needed (common in FormData)
+        let targetPublishState: boolean | undefined = undefined;
+        if (updatePropertyDto.pfPublished !== undefined) {
+            const val = updatePropertyDto.pfPublished as unknown;
+            if (val === 'true' || val === true) targetPublishState = true;
+            else if (val === 'false' || val === false) targetPublishState = false;
+        }
+
+        if (data.pfPublished !== undefined) {
+            delete data.pfPublished;
+        }
+
         // Perform Update
         const property = await this.prisma.property.update({
             where: { id },
@@ -717,8 +765,8 @@ export class PropertiesService {
             location: await this.getLocationFromIp(ipAddress),
         });
 
-        // Sync to PF
-        this.syncToPropertyFinder(property.id).catch((error) => {
+        // Sync to PF with target state
+        this.syncToPropertyFinder(property.id, targetPublishState).catch((error) => {
             this.logger.error(`Failed to auto-sync property ${property.id} on Update`, error);
         });
 
@@ -729,7 +777,7 @@ export class PropertiesService {
      * Helper method to sync property to Property Finder after creation
      * This is called asynchronously and errors are logged but don't fail property creation
      */
-    private async syncToPropertyFinderOnCreate(propertyId: string) {
+    private async syncToPropertyFinderOnCreate(propertyId: string, targetPublishState?: boolean) {
         this.logger.warn(`*** INITIATING PF SYNC FOR PROPERTY ${propertyId} ***`);
         try {
             const property = await this.prisma.property.findUnique({
@@ -812,6 +860,27 @@ export class PropertiesService {
             });
 
             this.logger.log(`Successfully auto-synced property ${propertyId} to Property Finder with listing ID: ${pfListing.id}`);
+
+            // VERIFIED PUBLISH LOGIC (Create)
+            if (targetPublishState !== undefined) {
+                if (targetPublishState === true) {
+                    try {
+                        this.logger.log(`Attempting to PUBLISH property ${propertyId} (Listing ${pfListing.id}) on PF`);
+                        await this.propertyFinderService.publishListing(pfListing.id);
+                        this.logger.log(`Successfully published listing ${pfListing.id}. Updating CRM status to Published.`);
+
+                        await this.prisma.property.update({
+                            where: { id: propertyId },
+                            data: { pfPublished: true }
+                        });
+                    } catch (pubError) {
+                        this.logger.error(`Failed to publish listing ${pfListing.id}. CRM Status remains Unpublished.`, pubError);
+                    }
+                } else {
+                    // Start as Draft logic is default, but if false explicitly passed we ensure it.
+                    // Usually creating implies draft.
+                }
+            }
 
             // ============ AUTOMATED VERIFICATION SUBMISSION ============
             try {
@@ -1139,7 +1208,7 @@ export class PropertiesService {
     /**
      * Sync a single property to Property Finder
      */
-    async syncToPropertyFinder(propertyId: string) {
+    async syncToPropertyFinder(propertyId: string, targetPublishState?: boolean) {
         const property = await this.prisma.property.findUnique({
             where: { id: propertyId },
             include: { assignedAgent: true },

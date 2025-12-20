@@ -86,5 +86,7 @@ export function useInfiniteProperties(
         isLoading,
         isFetchingNextPage,
         observerTarget,
+        fetchNextPage,
+        hasNextPage
     };
 }

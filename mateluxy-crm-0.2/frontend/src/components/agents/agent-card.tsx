@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Edit, Trash2, User, MoreVertical, CheckCircle, XCircle } from 'lucide-react';
 import { Agent } from '@/lib/services/agent.service';
 import {
@@ -42,7 +43,15 @@ export function AgentCard({ agent, onEdit, onDelete }: AgentCardProps) {
             {/* Profile Image Section */}
             <div className="relative ml-[8px] mr-[8px] mt-[8px] rounded-[26px] h-[240px] overflow-hidden">
                 {agent.photoUrl ? (
-                    <img src={agent.photoUrl} alt={agent.name} className="w-full h-full object-cover" />
+                    <div className="relative w-full h-full">
+                        <Image
+                            src={agent.photoUrl}
+                            alt={agent.name}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                    </div>
                 ) : (
                     <div className="w-full h-full bg-gradient-to-b from-[#E8F5E9] to-[#F1F8E9] flex items-center justify-center">
                         <User className="h-20 w-20 text-gray-300" />

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { VirtuosoGrid } from 'react-virtuoso';
 
 export default function AllPropertiesPage() {
     const queryClient = useQueryClient();
@@ -28,7 +29,7 @@ export default function AllPropertiesPage() {
         reference: '',
         propertyTypes: [],
         permitNumber: '',
-        status: '',
+        status: 'published', // Initialize with published (Active)
         minPrice: 0,
         maxPrice: 100000000,
         minArea: 0,
@@ -42,7 +43,7 @@ export default function AllPropertiesPage() {
     });
 
     // Use infinite scroll hook
-    const { properties, totalCount, isLoading, isFetchingNextPage, observerTarget } = useInfiniteProperties(
+    const { properties, totalCount, isLoading, isFetchingNextPage, observerTarget, fetchNextPage, hasNextPage } = useInfiniteProperties(
         searchQuery,
         filters,
         sortConfig
@@ -163,6 +164,8 @@ export default function AllPropertiesPage() {
         }
     };
 
+
+
     return (
         <div className="flex min-h-screen bg-[#ffffff]">
             {/* Filters Sidebar */}
@@ -179,11 +182,11 @@ export default function AllPropertiesPage() {
                 </div>
             )}
 
-            <div className="flex-1 p-8 max-w-[1600px] mx-auto">
+            <div className="flex-1 p-8 max-w-[1600px] mx-auto h-screen flex flex-col overflow-hidden">
                 {/* Header Title */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 flex-shrink-0">
                     <h1 className="text-[24px] font-semibold text-[#1A1A1A]" style={{ fontFamily: 'var(--font-montserrat)' }}>
-                        All Properties <span className="text-[#8F9BB3] font-medium ml-1">({totalCount})</span>
+                        Active Properties <span className="text-[#8F9BB3] font-medium ml-1">({totalCount})</span>
                     </h1>
                     <div className="flex items-center gap-3">
                         <Button
@@ -225,8 +228,7 @@ export default function AllPropertiesPage() {
 
                 {/* Filters Bar - Sticky */}
                 <div
-                    className="flex items-center gap-4 bg-white py-4 mb-8 rounded-xl transition-all"
-                    style={{ position: 'sticky', top: '0px', zIndex: 100 }}
+                    className="flex items-center gap-4 bg-white py-4 mb-4 rounded-xl transition-all flex-shrink-0 z-10"
                 >
                     <div className="relative flex-1 max-w-[400px]">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8F9BB3]" />
@@ -257,53 +259,73 @@ export default function AllPropertiesPage() {
                     </div>
                 </div>
 
-                {/* Grid */}
-                {isLoading ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-                        {[...Array(8)].map((_, i) => (
-                            <div key={i} className="flex justify-center">
-                                <PropertyCardSkeleton />
-                            </div>
-                        ))}
-                    </div>
-                ) : properties.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                            <Search className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-1">No properties found</h3>
-                        <p className="text-gray-500 max-w-sm mx-auto">
-                            We couldn't find any properties matching your search. Try adjusting your filters or add a new property.
-                        </p>
-                    </div>
-                ) : (
-                    <>
+                {/* Grid Content */}
+                <div className="flex-1 min-h-0">
+                    {isLoading ? (
                         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
-                            {properties.map((property, index) => (
-                                <React.Fragment key={`${property.id}-${index}`}>
-                                    <div className="flex justify-center">
-                                        <PropertyCard
-                                            property={property}
-                                            onStatusChange={handleStatusChange}
-                                            onToggleActive={handleToggleActive}
-                                        />
-                                    </div>
-                                    {/* Place observer target after 7th item to preload next batch */}
-                                    {index === 6 && (
-                                        <div ref={observerTarget} className="absolute opacity-0 pointer-events-none" />
-                                    )}
-                                </React.Fragment>
+                            {[...Array(8)].map((_, i) => (
+                                <div key={i} className="flex justify-center">
+                                    <PropertyCardSkeleton />
+                                </div>
                             ))}
                         </div>
-
-                        {/* Loading indicator at bottom */}
-                        {isFetchingNextPage && (
-                            <div className="flex justify-center py-8">
-                                <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                    ) : properties.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                <Search className="w-8 h-8 text-gray-400" />
                             </div>
-                        )}
-                    </>
-                )}
+                            <h3 className="text-lg font-medium text-gray-900 mb-1">No properties found</h3>
+                            <p className="text-gray-500 max-w-sm mx-auto">
+                                We couldn't find any properties matching your search. Try adjusting your filters or add a new property.
+                            </p>
+                        </div>
+                    ) : (
+                        <VirtuosoGrid
+                            style={{ height: '100%' }}
+                            totalCount={properties.length}
+                            overscan={200}
+                            endReached={() => {
+                                if (hasNextPage && !isFetchingNextPage) {
+                                    fetchNextPage();
+                                }
+                            }}
+                            components={{
+                                List: React.forwardRef(({ style, children, ...props }: any, ref) => (
+                                    <div
+                                        ref={ref}
+                                        {...props}
+                                        style={{
+                                            ...style,
+                                            display: 'grid',
+                                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                            gap: '16px',
+                                            paddingBottom: '32px'
+                                        }}
+                                    >
+                                        {children}
+                                    </div>
+                                )),
+                                Item: ({ children, ...props }: any) => (
+                                    <div {...props} className="flex justify-center">
+                                        {children}
+                                    </div>
+                                ),
+                                Footer: () => isFetchingNextPage ? (
+                                    <div className="col-span-full flex justify-center py-8">
+                                        <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : null
+                            }}
+                            itemContent={(index: number) => (
+                                <PropertyCard
+                                    property={properties[index]}
+                                    onStatusChange={handleStatusChange}
+                                    onToggleActive={handleToggleActive}
+                                />
+                            )}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -7,11 +7,73 @@ import { Label } from '@/components/ui/label';
 import { ImagePlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    rectSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 interface MediaTabProps {
     register: UseFormRegister<any>;
     setValue: UseFormSetValue<any>;
     watch: UseFormWatch<any>;
 }
+
+// Sortable Item Component
+const SortableMediaItem = ({ id, src, onRemove, index }: { id: string; src: string; onRemove: () => void, index: number }) => {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="relative w-[100px] h-[100px] group touch-none"
+            {...attributes}
+            {...listeners}
+        >
+            <img
+                src={src}
+                alt={`Media ${index + 1}`}
+                className="w-full h-full object-cover rounded-xl border border-[#EDF1F7] select-none pointer-events-none"
+            />
+            {/* Remove Button - Need to stop propagation so it doesn't trigger drag */}
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove();
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 z-10 cursor-pointer"
+                onPointerDown={(e) => e.stopPropagation()}
+            >
+                <X className="h-3 w-3" />
+            </button>
+        </div>
+    );
+};
 
 export function MediaTab({ register, setValue, watch }: MediaTabProps) {
     const defaultCover = watch('coverPhoto');
@@ -25,12 +87,34 @@ export function MediaTab({ register, setValue, watch }: MediaTabProps) {
     };
 
     const [coverPhoto, setCoverPhoto] = useState<string | null>(() => getPreview(defaultCover));
-    const [mediaImages, setMediaImages] = useState<string[]>(() => {
+
+    // We need stable IDs for DnD. We can use URL if string, or create object URL if File.
+    // Ideally we map them to an object { id: string, preview: string, file: File | string }
+    const createMediaItem = (fileOrUrl: File | string) => {
+        const preview = getPreview(fileOrUrl) as string;
+        // Use preview URL as ID roughly, or random ID if needed. Dnd kit needs unique ID.
+        // If file is same object, preview URL is same.
+        // For simplicity, we'll store specific wrapper objects in state.
+        return {
+            id: typeof fileOrUrl === 'string' ? fileOrUrl : (preview || Math.random().toString()),
+            preview,
+            original: fileOrUrl
+        };
+    };
+
+    const [items, setItems] = useState<{ id: string; preview: string; original: File | string }[]>(() => {
         if (Array.isArray(defaultMedia)) {
-            return defaultMedia.map((item: File | string) => getPreview(item) as string);
+            return defaultMedia.map(createMediaItem);
         }
         return [];
     });
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     const coverPhotoInputRef = useRef<HTMLInputElement>(null);
     const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -58,24 +142,39 @@ export function MediaTab({ register, setValue, watch }: MediaTabProps) {
         const files = e.target.files;
         if (files) {
             const newFiles = Array.from(files);
+            const newItems = newFiles.map(createMediaItem);
 
-            // Update local previews
-            const newPreviews = newFiles.map(file => URL.createObjectURL(file));
-            setMediaImages(prev => [...prev, ...newPreviews]);
-
-            // Update form state with actual Files
-            const currentFiles = Array.isArray(defaultMedia) ? defaultMedia : [];
-            setValue('mediaImages', [...currentFiles, ...newFiles]);
+            setItems((prev) => {
+                const updated = [...prev, ...newItems];
+                // Sync to form
+                setValue('mediaImages', updated.map(i => i.original));
+                return updated;
+            });
         }
     };
 
-    const removeMediaImage = (index: number) => {
-        setMediaImages(prev => prev.filter((_, i) => i !== index));
+    const removeMediaImage = (idToRemove: string) => {
+        setItems((prev) => {
+            const updated = prev.filter(item => item.id !== idToRemove);
+            setValue('mediaImages', updated.map(i => i.original));
+            return updated;
+        });
+    };
 
-        const currentFiles = Array.isArray(defaultMedia) ? defaultMedia : [];
-        if (Array.isArray(currentFiles)) {
-            const newFiles = currentFiles.filter((_, i) => i !== index);
-            setValue('mediaImages', newFiles);
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = items.findIndex((item) => item.id === active.id);
+            const newIndex = items.findIndex((item) => item.id === over.id);
+
+            const newOrder = arrayMove(items, oldIndex, newIndex);
+
+            // 1. Update Local State
+            setItems(newOrder);
+
+            // 2. Sync to Form (Side Effect safe here)
+            setValue('mediaImages', newOrder.map(i => i.original), { shouldDirty: true });
         }
     };
 
@@ -137,44 +236,49 @@ export function MediaTab({ register, setValue, watch }: MediaTabProps) {
             {/* Choose Media Grid */}
             <div className="space-y-3">
                 <Label className="text-[15px] font-medium text-[#00AAFF]">
-                    Choose Media
+                    Choose Media (Drag to Reorder)
                 </Label>
-                <div className="flex flex-wrap gap-3">
-                    {/* Add Image Button */}
-                    <label
-                        htmlFor="mediaUpload"
-                        className="flex items-center justify-center w-[100px] h-[100px] bg-[#F7F9FC] rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                        <ImagePlus className="w-6 h-6 text-gray-400" />
-                        <input
-                            id="mediaUpload"
-                            ref={mediaInputRef}
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={handleMediaUpload}
-                        />
-                    </label>
 
-                    {/* Uploaded Images */}
-                    {mediaImages.map((image, index) => (
-                        <div key={index} className="relative w-[100px] h-[100px]">
-                            <img
-                                src={image}
-                                alt={`Media ${index + 1}`}
-                                className="w-full h-full object-cover rounded-xl border border-[#EDF1F7]"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => removeMediaImage(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={items.map(i => i.id)}
+                        strategy={rectSortingStrategy}
+                    >
+                        <div className="flex flex-wrap gap-3">
+                            {/* Add Image Button - Always first or last? Standard is last. */}
+                            <label
+                                htmlFor="mediaUpload"
+                                className="flex items-center justify-center w-[100px] h-[100px] bg-[#F7F9FC] rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
                             >
-                                <X className="h-3 w-3" />
-                            </button>
+                                <ImagePlus className="w-6 h-6 text-gray-400" />
+                                <input
+                                    id="mediaUpload"
+                                    ref={mediaInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleMediaUpload}
+                                />
+                            </label>
+
+                            {/* Sortable Items */}
+                            {items.map((item, index) => (
+                                <SortableMediaItem
+                                    key={item.id}
+                                    id={item.id}
+                                    src={item.preview}
+                                    index={index}
+                                    onRemove={() => removeMediaImage(item.id)}
+                                />
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    </SortableContext>
+                </DndContext>
             </div>
         </div>
     );

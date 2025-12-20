@@ -9,13 +9,19 @@ interface DeveloperListProps {
     search?: string;
 }
 
+import { DeveloperCardSkeleton } from './developer-card-skeleton';
+
 export function DeveloperList({ search }: DeveloperListProps) {
     const { data: developers, isLoading, error } = useDevelopers(search);
 
     if (isLoading) {
         return (
-            <div className="flex h-64 w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <div className="relative">
+                <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <DeveloperCardSkeleton key={i} />
+                    ))}
+                </div>
             </div>
         );
     }

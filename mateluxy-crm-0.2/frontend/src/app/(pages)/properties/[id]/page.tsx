@@ -8,6 +8,7 @@ import { PropertyFinderLeadService, PropertyFinderLead } from '@/lib/services/pr
 import Image from 'next/image';
 import { ArrowLeft, Check, X, TrendingUp, TrendingDown, ChevronDown, ArrowLeftRight, FileText, Image as ImageIcon, LayoutGrid, Copy, Maximize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PropertyDetailSkeleton } from '@/components/properties/property-detail-skeleton';
 
 // Reuse lead card styles
 const startCase = (str: string) => str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -105,32 +106,32 @@ export default function PropertyDetailPage() {
         queryKey: ['property', propertyId],
         queryFn: () => getProperty(propertyId),
         enabled: !!propertyId,
+        staleTime: 5 * 60 * 1000,
     });
 
     const { data: pfListing, isLoading: pfListingLoading } = useQuery({
         queryKey: ['property', propertyId, 'pf-listing'],
         queryFn: () => getPropertyFinderListing(propertyId),
         enabled: !!propertyId, // Always fetch to get local quality preview if needed
+        staleTime: 5 * 60 * 1000,
     });
 
     const { data: stats, isLoading: statsLoading } = useQuery({
         queryKey: ['property', propertyId, 'pf-stats'],
         queryFn: () => getPropertyFinderStats(propertyId),
         enabled: !!propertyId,
+        staleTime: 5 * 60 * 1000,
     });
 
     const { data: leads = [], isLoading: leadsLoading } = useQuery({
         queryKey: ['property-finder-leads', property?.reference || property?.id],
         queryFn: () => PropertyFinderLeadService.listLeads(property?.reference || property?.id),
         enabled: !!property,
+        staleTime: 5 * 60 * 1000,
     });
 
     if (propertyLoading) {
-        return (
-            <div className="min-h-screen bg-[#f8f9fc] flex items-center justify-center">
-                <div className="text-center text-[#7b8794]">Loading property...</div>
-            </div>
-        );
+        return <PropertyDetailSkeleton />;
     }
 
     if (!property) {

@@ -5,6 +5,7 @@ export const useDevelopers = (search?: string) => {
     return useQuery({
         queryKey: ['developers', search],
         queryFn: () => developerService.getAll(search),
+        staleTime: 5 * 60 * 1000, // 5 minutes
     });
 };
 

@@ -7,10 +7,13 @@ export const propertiesKeys = {
     detail: (id: string) => ['properties', id] as const,
 };
 
+import { keepPreviousData } from '@tanstack/react-query';
+
 export const useProperties = () => {
     return useQuery({
         queryKey: propertiesKeys.all,
         queryFn: () => getProperties(),
+        placeholderData: keepPreviousData,
     });
 };
 

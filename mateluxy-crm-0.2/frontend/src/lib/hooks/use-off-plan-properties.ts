@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { offPlanPropertyService, CreateOffPlanPropertyDto } from '../services/off-plan-property.service';
 
+import { keepPreviousData } from '@tanstack/react-query';
+
 export const useOffPlanProperties = (filters?: Parameters<typeof offPlanPropertyService.getAll>[0]) => {
     return useQuery({
         queryKey: ['off-plan-properties', filters],
         queryFn: () => offPlanPropertyService.getAll(filters),
+        placeholderData: keepPreviousData,
     });
 };
 

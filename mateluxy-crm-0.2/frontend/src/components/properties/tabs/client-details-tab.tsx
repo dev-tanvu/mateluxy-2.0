@@ -15,15 +15,15 @@ interface ClientDetailsTabProps {
     errors: FieldErrors<any>;
     setValue: UseFormSetValue<any>;
     watch: UseFormWatch<any>;
-    nocFile: File | null;
+    nocFile: File | string | null;
     onNocFileChange: (file: File | null) => void;
 
     // New document props
-    passportFile: File | null;
+    passportFile: File | string | null;
     onPassportFileChange: (file: File | null) => void;
-    emiratesIdFile: File | null;
+    emiratesIdFile: File | string | null;
     onEmiratesIdFileChange: (file: File | null) => void;
-    titleDeedFile: File | null;
+    titleDeedFile: File | string | null;
     onTitleDeedFileChange: (file: File | null) => void;
 }
 
