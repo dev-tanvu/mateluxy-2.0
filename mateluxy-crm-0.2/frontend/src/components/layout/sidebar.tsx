@@ -57,7 +57,7 @@ const MENU_ITEMS: MenuItem[] = [
             { title: 'Active Properties', href: '/properties/all' },
             { title: 'Add New Property', href: '/properties/new' },
             { title: 'Draft Properties', href: '/properties/draft' },
-            { title: 'From Agents', href: '/properties/agents' },
+            { title: 'From Agents', href: '/properties/agents', underDevelopment: true },
             { title: 'Unpublished', href: '/properties/unpublished' },
             { title: 'Rejected Properties', href: '/properties/rejected' },
             { title: 'Sold Properties', href: '/properties/sold' },
@@ -72,7 +72,7 @@ const MENU_ITEMS: MenuItem[] = [
             { title: 'Add New Property', href: '/off-plan/new' },
             { title: 'All Properties', href: '/off-plan' },
             { title: 'Draft Properties', href: '/off-plan/draft' },
-            { title: 'From Agents', href: '/off-plan/agents' },
+            { title: 'From Agents', href: '/off-plan/agents', underDevelopment: true },
             { title: 'Unpublished', href: '/off-plan/unpublished' },
         ],
     },
@@ -166,11 +166,11 @@ export function Sidebar() {
                                                 "group flex w-full items-center justify-between rounded-xl px-3 py-3 text-[15px] font-medium transition-all",
                                                 isParentActive
                                                     ? "bg-[#00AAFF] text-white shadow-sm"
-                                                    : "text-[#222F3E] hover:bg-gray-50"
+                                                    : "text-[#727C90] hover:bg-gray-50"
                                             )}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <item.icon className={cn("h-5 w-5", isParentActive ? "text-white" : "text-[#8E99A4]")} />
+                                                <item.icon className={cn("h-5 w-5", isParentActive ? "text-white" : "text-[#727C90]")} />
                                                 <span>{item.title}</span>
                                             </div>
                                             <div
@@ -184,7 +184,7 @@ export function Sidebar() {
                                                 <ChevronDown
                                                     className={cn(
                                                         "h-4 w-4 transition-transform duration-200",
-                                                        isParentActive ? "text-white" : "text-[#8E99A4]",
+                                                        isParentActive ? "text-white" : "text-[#727C90]",
                                                         isExpanded ? "rotate-180" : ""
                                                     )}
                                                 />
@@ -208,7 +208,7 @@ export function Sidebar() {
                                                                 {sub.underDevelopment ? (
                                                                     <button
                                                                         onClick={() => handleUnderDevClick(sub.title)}
-                                                                        className="block pl-5 py-2 text-[14px] font-medium transition-colors w-full text-left text-[#8E99A4] hover:text-[#222F3E]"
+                                                                        className="block pl-5 py-2 text-[14px] font-medium transition-colors w-full text-left text-[#727C90] hover:bg-gray-50/50"
                                                                     >
                                                                         {sub.title}
                                                                     </button>
@@ -219,7 +219,7 @@ export function Sidebar() {
                                                                             "block pl-5 py-2 text-[14px] font-medium transition-colors",
                                                                             isSubActive
                                                                                 ? "text-[#00AAFF]"
-                                                                                : "text-[#8E99A4] hover:text-[#222F3E]"
+                                                                                : "text-[#727C90] hover:bg-gray-50/50"
                                                                         )}
                                                                     >
                                                                         {sub.title}
@@ -243,11 +243,11 @@ export function Sidebar() {
                                         onClick={() => handleUnderDevClick(item.title)}
                                         className={cn(
                                             "group flex w-full items-center justify-between rounded-xl px-3 py-3 text-[15px] font-medium transition-all",
-                                            "text-[#222F3E] hover:bg-gray-50"
+                                            "text-[#727C90] hover:bg-gray-50"
                                         )}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <item.icon className="h-5 w-5 text-[#8E99A4]" />
+                                            <item.icon className="h-5 w-5 text-[#727C90]" />
                                             <span>{item.title}</span>
                                         </div>
                                     </button>
@@ -263,11 +263,11 @@ export function Sidebar() {
                                         "group flex w-full items-center justify-between rounded-xl px-3 py-3 text-[15px] font-medium transition-all",
                                         isDirectActive
                                             ? "bg-[#00AAFF] text-white shadow-sm"
-                                            : "text-[#222F3E] hover:bg-gray-50"
+                                            : "text-[#727C90] hover:bg-gray-50"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <item.icon className={cn("h-5 w-5", isDirectActive ? "text-white" : "text-[#8E99A4]")} />
+                                        <item.icon className={cn("h-5 w-5", isDirectActive ? "text-white" : "text-[#727C90]")} />
                                         <span>{item.title}</span>
                                     </div>
                                 </Link>
