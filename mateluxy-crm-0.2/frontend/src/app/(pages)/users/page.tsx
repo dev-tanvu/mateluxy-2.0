@@ -11,6 +11,8 @@ import { DeleteUserDialog } from '@/components/users/delete-user-dialog';
 import { DeactivateUserDialog } from '@/components/users/deactivate-user-dialog';
 import { ActivateUserDialog } from '@/components/users/activate-user-dialog';
 import { User } from '@/lib/services/user.service';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { toast } from 'sonner';
 
 export default function UsersPage() {
     const [activeTab, setActiveTab] = useState('All');
@@ -20,6 +22,9 @@ export default function UsersPage() {
     const [deletingUser, setDeletingUser] = useState<User | null>(null);
     const [deactivatingUser, setDeactivatingUser] = useState<User | null>(null);
     const [activatingUser, setActivatingUser] = useState<User | null>(null);
+
+    const currentUser = useAuthStore((state) => state.user);
+    const isModerator = currentUser?.role === 'MODERATOR';
 
     const tabs = ['All', 'Admin', 'Moderator'];
 
@@ -43,6 +48,14 @@ export default function UsersPage() {
     const handleCloseSheet = () => {
         setIsAddUserOpen(false);
         setEditingUser(null);
+    };
+
+    const handleCreateClick = () => {
+        if (isModerator) {
+            toast.error("You don't have permission to create users.");
+            return;
+        }
+        setIsAddUserOpen(true);
     };
 
     return (
@@ -78,12 +91,14 @@ export default function UsersPage() {
                         />
                         <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     </div>
-                    <Button
-                        onClick={() => setIsAddUserOpen(true)}
-                        className="rounded-lg bg-[#E0F2FE] text-[#0095FF] hover:bg-[#BAE6FD] border-none shadow-none h-10 px-6"
-                    >
-                        <Plus className="h-4 w-4" /> Create new
-                    </Button>
+                    {!isModerator && (
+                        <Button
+                            onClick={handleCreateClick}
+                            className="rounded-lg bg-[#E0F2FE] text-[#0095FF] hover:bg-[#BAE6FD] border-none shadow-none h-10 px-6"
+                        >
+                            <Plus className="h-4 w-4" /> Create new
+                        </Button>
+                    )}
                 </div>
             </div>
 

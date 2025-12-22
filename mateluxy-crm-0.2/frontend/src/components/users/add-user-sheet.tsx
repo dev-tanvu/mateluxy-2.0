@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Camera, Plus, Loader2, Save } from 'lucide-react';
 import { useCreateUser, useUpdateUser } from '@/lib/hooks/use-users';
 import { User } from '@/lib/services/user.service';
+import { MENU_ITEMS } from '@/lib/config/menu';
 
 interface AddUserSheetProps {
     isOpen: boolean;
@@ -132,12 +133,16 @@ export function AddUserSheet({ isOpen, onClose, user }: AddUserSheetProps) {
         }
     };
 
-    const availablePermissions = [
-        'Dashboard', 'Agents', 'Media Library', 'Admin & Mod',
-        'Property', 'Developers', 'Settings', 'App Notifications',
-        'Leads', 'Integrations', 'Agreement & Doc',
-        'Users', 'Activity Log', 'NOC & Details'
-    ];
+    // Derive permissions from MENU_ITEMS to stay in sync with sidebar
+    const availablePermissions = useMemo(() => {
+        const perms = new Set<string>();
+        MENU_ITEMS.forEach(item => {
+            if (item.permission) {
+                perms.add(item.permission);
+            }
+        });
+        return Array.from(perms);
+    }, []);
 
     return (
         <Sheet isOpen={isOpen} onClose={onClose} title={user ? "Edit User" : "Add User"}>

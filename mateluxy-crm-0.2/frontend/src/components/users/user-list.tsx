@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { User } from '@/lib/services/user.service';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { toast } from 'sonner';
 
 interface UserListProps {
     search?: string;
@@ -23,6 +25,12 @@ interface UserListProps {
 
 export function UserList({ search, role, onEdit, onDelete, onDeactivate, onActivate }: UserListProps) {
     const { data: users, isLoading, error } = useUsers(search, role);
+    const currentUser = useAuthStore((state) => state.user);
+    const isModerator = currentUser?.role === 'MODERATOR';
+
+    const handleRestrictedAction = (action: string) => {
+        toast.error(`You don't have permission to ${action} users.`);
+    };
 
     if (isLoading) {
         return (
@@ -79,14 +87,14 @@ export function UserList({ search, role, onEdit, onDelete, onDeactivate, onActiv
                             <td className="py-2 px-8 text-right">
                                 <div className="flex items-center justify-end gap-3">
                                     <button
-                                        onClick={() => onEdit?.(user)}
-                                        className="p-1 text-[#0095FF] hover:text-[#007acc] transition-colors"
+                                        onClick={() => isModerator ? handleRestrictedAction('edit') : onEdit?.(user)}
+                                        className={`p-1 transition-colors ${isModerator ? 'text-gray-300 cursor-not-allowed' : 'text-[#0095FF] hover:text-[#007acc]'}`}
                                     >
                                         <Edit2 className="h-4 w-4" />
                                     </button>
                                     <button
-                                        onClick={() => onDelete?.(user)}
-                                        className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                        onClick={() => isModerator ? handleRestrictedAction('delete') : onDelete?.(user)}
+                                        className={`p-1 transition-colors ${isModerator ? 'text-gray-300 cursor-not-allowed' : 'text-red-400 hover:text-red-600'}`}
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
@@ -98,12 +106,18 @@ export function UserList({ search, role, onEdit, onDelete, onDeactivate, onActiv
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             {user.isActive ? (
-                                                <DropdownMenuItem onClick={() => onDeactivate?.(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                                                <DropdownMenuItem
+                                                    onClick={() => isModerator ? handleRestrictedAction('deactivate') : onDeactivate?.(user)}
+                                                    className={isModerator ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer'}
+                                                >
                                                     <Ban className="mr-2 h-4 w-4" />
                                                     <span>Deactivate</span>
                                                 </DropdownMenuItem>
                                             ) : (
-                                                <DropdownMenuItem onClick={() => onActivate?.(user)} className="text-green-600 focus:text-green-600 focus:bg-green-50 cursor-pointer">
+                                                <DropdownMenuItem
+                                                    onClick={() => isModerator ? handleRestrictedAction('activate') : onActivate?.(user)}
+                                                    className={isModerator ? 'text-gray-400 cursor-not-allowed' : 'text-green-600 focus:text-green-600 focus:bg-green-50 cursor-pointer'}
+                                                >
                                                     <CheckCircle className="mr-2 h-4 w-4" />
                                                     <span>Activate</span>
                                                 </DropdownMenuItem>
